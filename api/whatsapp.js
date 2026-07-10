@@ -33,7 +33,7 @@ const adminPhone = process.env.ADMIN_PHONE;
 // Rutas
 
 // Ruta principal para recibir mensajes de WhatsApp
-app.post('/webhook/whatsapp', async (req, res) => {
+app.post('/', async (req, res) => {
   const incoming = req.body;
   const userPhone = incoming.From;
   const userMessage = incoming.Body;
@@ -158,7 +158,7 @@ app.post('/webhook/admin-teach', async (req, res) => {
 });
 
 // Ruta para recibir mensajes webhook de Twilio
-app.get('/webhook/whatsapp', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).send('Webhook configured');
 });
 
@@ -176,30 +176,5 @@ app.get('/health', (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-// Iniciar servidor
-app.listen(port, () => {
-  console.log(`
-╔════════════════════════════════════════╗
-║  🤖 Bot WhatsApp "Recetas de la Abuela" ║
-║      Servidor iniciado exitosamente    ║
-╚════════════════════════════════════════╝
-
-📱 Escuchando en puerto: ${port}
-📲 Webhook: POST /webhook/whatsapp
-👨‍💼 Admin: POST /webhook/admin-teach
-
-Variables requeridas:
-  ✓ TWILIO_ACCOUNT_SID
-  ✓ TWILIO_AUTH_TOKEN
-  ✓ TWILIO_WHATSAPP_NUMBER
-  ✓ ADMIN_PHONE
-
-Pronto estará disponible en:
-http://localhost:${port}
-  `);
-});
-
-// Manejo de errores
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+// Exportar para Vercel serverless
+module.exports = app;
