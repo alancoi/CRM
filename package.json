@@ -1,0 +1,25 @@
+{
+  "name": "recetas-wsp-bot",
+  "version": "1.0.0",
+  "description": "Chatbot WhatsApp para recetas saludables y remedios ancestrales",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node test.js"
+  },
+  "keywords": ["whatsapp", "twilio", "bot", "recetas"],
+  "author": "Coi",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "twilio": "^3.88.0",
+    "sqlite3": "^5.1.6",
+    "dotenv": "^16.0.3",
+    "axios": "^1.4.0",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
