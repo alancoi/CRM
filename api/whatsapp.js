@@ -23,11 +23,9 @@ const twilio_client = twilio(
 const twilioPhoneNumber = process.env.TWILIO_WHATSAPP_NUMBER;
 const adminPhone = process.env.ADMIN_PHONE;
 
-// Handler principal para Vercel
 module.exports = async (req, res) => {
   console.log(`📝 Método: ${req.method}, Path: ${req.url}`);
 
-  // Si es GET a /health o /status
   if (req.method === 'GET') {
     if (req.url === '/api/whatsapp/health') {
       return res.status(200).json({ ok: true });
@@ -42,19 +40,16 @@ module.exports = async (req, res) => {
     return res.status(200).send('Webhook configured');
   }
 
-  // Si es POST a /api/whatsapp
   if (req.method === 'POST' && req.url === '/api/whatsapp') {
     return handleWhatsAppMessage(req, res);
   }
 
-  // Cualquier otra ruta
   return res.status(404).json({ error: 'Not found' });
 };
 
 async function handleWhatsAppMessage(req, res) {
   let body = '';
 
-  // Leer el body de la solicitud
   await new Promise((resolve, reject) => {
     req.on('data', chunk => {
       body += chunk.toString();
@@ -63,13 +58,11 @@ async function handleWhatsAppMessage(req, res) {
     req.on('error', reject);
   });
 
-  // Parsear el body (Twilio envía form-urlencoded)
   const incoming = querystring.parse(body);
   const userPhone = incoming.From;
   const userMessage = incoming.Body;
 
   console.log(`📱 Mensaje de ${userPhone}: ${userMessage}`);
-  console.log(`🔑 Twilio Number: ${twilioPhoneNumber}, Admin: ${adminPhone}`);
 
   try {
     if (!userPhone || !userMessage) {
@@ -77,17 +70,14 @@ async function handleWhatsAppMessage(req, res) {
       return res.status(400).json({ error: 'Missing From or Body' });
     }
 
-    // Procesar mensaje
     console.log('📌 Procesando mensaje...');
     const response = await processMessage(userMessage, userPhone);
     console.log('✅ Mensaje procesado:', JSON.stringify(response));
 
-    // Formatear respuesta
     console.log('📝 Formateando respuesta...');
     let messageText = formatResponseWithLinks(response, response.category);
     console.log('📝 Texto formateado:', messageText.substring(0, 100) + '...');
 
-    // Guardar interacción en Supabase ANTES de enviar
     console.log('💾 Guardando en Supabase...');
     try {
       await saveInteraction(userPhone, userMessage, messageText, response.category);
@@ -96,7 +86,6 @@ async function handleWhatsAppMessage(req, res) {
       console.error('⚠️ Error guardando en Supabase:', dbError.message);
     }
 
-    // Enviar respuesta principal
     console.log('📤 Enviando mensaje a WhatsApp...');
     const sent = await twilio_client.messages.create({
       from: twilioPhoneNumber,
@@ -105,7 +94,6 @@ async function handleWhatsAppMessage(req, res) {
     });
     console.log('✅ Mensaje enviado:', sent.sid);
 
-    // Si es una consulta no resuelta, notificar al admin
     if (response.shouldNotifyAdmin) {
       console.log('📢 Notificando al admin...');
       const adminNotification = `
@@ -117,9 +105,6 @@ async function handleWhatsAppMessage(req, res) {
 
 Responde a este mensaje con el formato:
 ENSEÑA: <palabra clave> | <respuesta>
-
-Ejemplo:
-ENSEÑA: receta de té | El té de jengibre es excelente para la inflamación...
       `.trim();
 
       await twilio_client.messages.create({
@@ -133,7 +118,6 @@ ENSEÑA: receta de té | El té de jengibre es excelente para la inflamación...
     return res.status(200).send('OK');
   } catch (error) {
     console.error('❌ Error procesando mensaje:', error.message);
-    console.error('Stack:', error.stack);
     return res.status(500).json({ error: error.message });
   }
 }
