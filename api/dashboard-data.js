@@ -1,68 +1,49 @@
 require('dotenv').config();
-const sqlite3 = require('sqlite3').verbose();
-const DB_PATH = process.env.DB_PATH || '/tmp/bot_memory.db';
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
 
 module.exports = async (req, res) => {
-  const db = new sqlite3.Database(DB_PATH);
+  try {
+    const { data: interactions, error } = await supabase
+      .from('user_interactions')
+      .select('*')
+      .order('timestamp', { ascending: false });
 
-  db.run(`CREATE TABLE IF NOT EXISTS user_interactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phone TEXT NOT NULL,
-    message TEXT,
-    response TEXT,
-    category TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) {
-      console.error('Error creating table:', err);
-      res.status(500).json({ error: 'Error creating table' });
-      db.close();
-      return;
-    }
+    if (error) throw error;
 
-    db.all(
-      `SELECT phone, message, response, timestamp FROM user_interactions ORDER BY timestamp DESC`,
-      (err, rows) => {
-        if (err) {
-          console.error('Error:', err);
-          res.status(500).json({ error: err.message });
-          db.close();
-          return;
-        }
-
-        const chatsMap = new Map();
-        if (rows && rows.length > 0) {
-          rows.forEach(row => {
-            const phone = row.phone || 'Usuario Desconocido';
-            if (!chatsMap.has(phone)) {
-              const initials = phone.substring(0, 2).toUpperCase();
-              chatsMap.set(phone, {
-                id: chatsMap.size + 1,
-                name: `Usuario ${phone.substring(phone.length - 4)}`,
-                phone: phone,
-                avatar: initials,
-                lastMessage: row.message || row.response || '',
-                time: new Date(row.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
-                messages: []
-              });
-            }
-            const chat = chatsMap.get(phone);
-            if (row.message) chat.messages.push({ type: 'sent', text: row.message });
-            if (row.response) chat.messages.push({ type: 'received', text: row.response });
-          });
-        }
-
-        const chats = Array.from(chatsMap.values());
-        res.status(200).json({
-          chats: chats,
-          stats: {
-            totalMessages: rows ? rows.length : 0,
-            unresolvedCount: 0,
-            totalClients: chats.length
-          }
-        });
-        db.close();
+    const chatsMap = {};
+    (interactions || []).forEach(interaction => {
+      if (!chatsMap[interaction.phone]) {
+        chatsMap[interaction.phone] = {
+          id: Object.keys(chatsMap).length,
+          name: interaction.phone,
+          phone: interaction.phone,
+          lastMessage: interaction.message || interaction.response || '',
+          messages: []
+        };
       }
-    );
-  });
+      chatsMap[interaction.phone].messages.push({
+        type: interaction.message ? 'sent' : 'received',
+        text: interaction.message || interaction.response
+      });
+    });
+
+    const chats = Object.values(chatsMap);
+
+    res.status(200).json({
+      chats,
+      stats: {
+        totalClients: chats.length,
+        totalMessages: interactions?.length || 0,
+        unresolvedCount: 0
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
