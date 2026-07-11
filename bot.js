@@ -11,19 +11,19 @@ const CATEGORIES = {
     name: '🥗 Recetas Saludables',
     emoji: '🥗',
     url: process.env.URL_RECETAS_SALUDABLES,
-    keywords: ['receta', 'saludable', 'dieta', 'salud', 'comida']
+    keywords: ['receta', 'saludable', 'dieta', 'salud', 'comida', '1']
   },
   menopausia: {
     name: '📱 App para Mujeres con Menopausia',
     emoji: '📱',
     url: process.env.URL_MENOPAUSIA,
-    keywords: ['menopausia', 'mujer', 'hormonal', 'síntomas', 'app']
+    keywords: ['menopausia', 'mujer', 'hormonal', 'síntomas', 'app', '2']
   },
   remedios: {
     name: '🌿 Remedios Ancestrales',
     emoji: '🌿',
     url: process.env.URL_REMEDIOS,
-    keywords: ['remedio', 'ancestral', 'abuela', 'natural', 'tradicional']
+    keywords: ['remedio', 'ancestral', 'abuela', 'natural', 'tradicional', '3']
   }
 };
 
@@ -31,16 +31,16 @@ const SALUDOS = ['hola', 'hi', 'buenos días', 'buenas tardes', 'buenas noches',
 
 function getMainMenu() {
   return {
-    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?\n\n🥗 Más de 1000 Recetas Saludables\n📱 App para Mujeres con Menopausia\n🌿 200 Remedios Ancestrales Naturales`,
-    quickReply: [
+    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?\n\n📋 Seleccioná tocando el botón o escribiendo 1, 2 o 3\n\n💡 Importante: Las compras se hacen solo por la web y te llegan automáticamente a tu mail. El pago es único con acceso de por vida al material y sus actualizaciones.`,
+    options: [
       {
-        text: '🥗 Más de 1000 Recetas Saludables'
+        text: '🥗 Recetas Saludables'
       },
       {
-        text: '📱 App para Mujeres con Menopausia'
+        text: '📱 App Menopausia'
       },
       {
-        text: '🌿 200 Remedios Ancestrales Naturales'
+        text: '🌿 Remedios Ancestrales'
       }
     ]
   };
@@ -71,18 +71,21 @@ async function processMessage(userMessage, fromPhone) {
     return getMainMenu();
   }
 
-  // Verificar si es uno de los botones principales
+  // Verificar si es uno de los botones principales (por nombre o número)
   let selectedCategory = null;
-  for (const [key, category] of Object.entries(CATEGORIES)) {
-    if (trimmed.includes(category.name) || trimmed.includes(category.emoji)) {
-      selectedCategory = key;
-      break;
-    }
+  const lowerTrimmed = trimmed.toLowerCase();
+  
+  if (lowerTrimmed.includes('receta') || lowerTrimmed === '1') {
+    selectedCategory = 'recetas_saludables';
+  } else if (lowerTrimmed.includes('menopausia') || lowerTrimmed.includes('app') || lowerTrimmed === '2') {
+    selectedCategory = 'menopausia';
+  } else if (lowerTrimmed.includes('remedio') || lowerTrimmed === '3') {
+    selectedCategory = 'remedios';
   }
 
-  // Si es un botón principal, devolver el menú de la categoría
+  // Si es una opción del menú, devolver la web directa
   if (selectedCategory) {
-    return generateCategoryResponse(selectedCategory);
+    return generateDirectPurchaseResponse(selectedCategory);
   }
 
   // Intentar encontrar respuesta en la base de datos
@@ -124,21 +127,20 @@ async function processMessage(userMessage, fromPhone) {
   };
 }
 
-function generateCategoryResponse(categoryKey) {
+function generateDirectPurchaseResponse(categoryKey) {
   const category = CATEGORIES[categoryKey];
 
   return {
-    text: `${category.emoji} ${category.name}\n\n¿En qué puedo ayudarte? Puedo responder preguntas sobre recetas, ingredientes, preparación y más.\n\nO si prefieres, haz clic aquí para ir directamente a nuestra tienda:\n\n👉 ${category.url}`,
-    includeLinks: true,
-    category: categoryKey,
-    showBackButton: true
+    text: `${category.emoji} ${category.name}\n\n¡Perfecto! Accedé a tu compra por aquí:\n\n👉 ${category.url}\n\nℹ️ Tu acceso se envía automáticamente a tu mail. Pago único, acceso de por vida + todas las actualizaciones.`,
+    includeLinks: false,
+    category: categoryKey
   };
 }
 
 function formatResponseWithLinks(response, category = null) {
   let text = response.text;
 
-  // Agregar links automáticamente
+  // Agregar links automáticamente solo si se especifica
   if (response.includeLinks) {
     text += `\n\n---\n📱 Ir a la tienda:\n`;
     for (const [key, cat] of Object.entries(CATEGORIES)) {
@@ -152,7 +154,6 @@ function formatResponseWithLinks(response, category = null) {
 }
 
 async function handleAdminTeaching(queryId, teachingResponse) {
-  // Guardar la respuesta aprendida
   const keywords = teachingResponse.keywords || [];
   const mainKeyword = keywords[0] || `query_${queryId}`;
 
@@ -171,7 +172,7 @@ async function handleAdminTeaching(queryId, teachingResponse) {
 module.exports = {
   getMainMenu,
   processMessage,
-  generateCategoryResponse,
+  generateDirectPurchaseResponse,
   formatResponseWithLinks,
   handleAdminTeaching,
   CATEGORIES,
