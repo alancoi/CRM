@@ -1,7 +1,6 @@
 require('dotenv').config();
-const express = require('express');
-const bodyParser = require('body-parser');
 const twilio = require('twilio');
+const querystring = require('querystring');
 
 const {
   getMainMenu,
@@ -15,13 +14,6 @@ const {
   getUnresolvedQueries
 } = require('../database');
 
-const app = express();
-const port = process.env.PORT || 3000;
-
-// Middleware
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
 const twilio_client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -30,32 +22,82 @@ const twilio_client = twilio(
 const twilioPhoneNumber = process.env.TWILIO_WHATSAPP_NUMBER;
 const adminPhone = process.env.ADMIN_PHONE;
 
-// Rutas
+// Handler principal para Vercel
+module.exports = async (req, res) => {
+  console.log(`📝 Método: ${req.method}, Path: ${req.url}`);
 
-// Ruta principal para recibir mensajes de WhatsApp
-app.post('/', async (req, res) => {
-  const incoming = req.body;
-  const userPhone = incoming.From;
-  const userMessage = incoming.Body;
+  // Si es GET a /health o /status
+  if (req.method === 'GET') {
+    if (req.url === '/api/whatsapp/health') {
+      return res.status(200).json({ ok: true });
+    }
+    if (req.url === '/api/whatsapp/status') {
+      return res.status(200).json({
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      });
+    }
+    return res.status(200).send('Webhook configured');
+  }
+
+  // Si es POST a /api/whatsapp
+  if (req.method === 'POST' && req.url === '/api/whatsapp') {
+    return handleWhatsAppMessage(req, res);
+  }
+
+  // Cualquier otra ruta
+  return res.status(404).json({ error: 'Not found' });
+};
+
+async function handleWhatsAppMessage(req, res) {
+  let body = '';
+
+  // Leer el body de la solicitud
+  await new Promise((resolve, reject) => {
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', resolve);
+    req.on('error', reject);
+  });
+
+  // Parsear el body (Twilio envía form-urlencoded)
+  const incoming = new URLSearchParams(body);
+  const userPhone = incoming.get('From');
+  const userMessage = incoming.get('Body');
 
   console.log(`📱 Mensaje de ${userPhone}: ${userMessage}`);
+  console.log(`🔑 Twilio Number: ${twilioPhoneNumber}, Admin: ${adminPhone}`);
 
   try {
+    if (!userPhone || !userMessage) {
+      console.error('❌ Falta From o Body');
+      return res.status(400).json({ error: 'Missing From or Body' });
+    }
+
     // Procesar mensaje
+    console.log('📌 Procesando mensaje...');
     const response = await processMessage(userMessage, userPhone);
+    console.log('✅ Mensaje procesado:', JSON.stringify(response));
 
     // Formatear respuesta
+    console.log('📝 Formateando respuesta...');
     let messageText = formatResponseWithLinks(response, response.category);
+    console.log('📝 Texto formateado:', messageText.substring(0, 100) + '...');
 
     // Enviar respuesta principal
-    await twilio_client.messages.create({
+    console.log('📤 Enviando mensaje a WhatsApp...');
+    const sent = await twilio_client.messages.create({
       from: twilioPhoneNumber,
       to: userPhone,
       body: messageText
     });
+    console.log('✅ Mensaje enviado:', sent.sid);
 
     // Si es una consulta no resuelta, notificar al admin
     if (response.shouldNotifyAdmin) {
+      console.log('📢 Notificando al admin...');
       const adminNotification = `
 🚨 NUEVA PREGUNTA SIN RESPUESTA
 
@@ -75,106 +117,13 @@ ENSEÑA: receta de té | El té de jengibre es excelente para la inflamación...
         to: adminPhone,
         body: adminNotification
       });
+      console.log('✅ Admin notificado');
     }
 
-    res.status(200).send('OK');
+    return res.status(200).send('OK');
   } catch (error) {
-    console.error('Error procesando mensaje:', error);
-    res.status(500).send('Error');
+    console.error('❌ Error procesando mensaje:', error.message);
+    console.error('Stack:', error.stack);
+    return res.status(500).json({ error: error.message });
   }
-});
-
-// Ruta para que el admin responda a consultas
-app.post('/webhook/admin-teach', async (req, res) => {
-  const incoming = req.body;
-  const adminPhone_check = incoming.From;
-  const message = incoming.Body;
-
-  if (adminPhone_check !== adminPhone) {
-    console.log('❌ Intento de acceso no autorizado desde:', adminPhone_check);
-    return res.status(403).send('Unauthorized');
-  }
-
-  // Buscar comando ENSEÑA
-  if (message.startsWith('ENSEÑA:')) {
-    try {
-      const parts = message.substring(7).split('|').map(p => p.trim());
-      const keyword = parts[0];
-      const response = parts.slice(1).join('|');
-
-      if (!keyword || !response) {
-        await twilio_client.messages.create({
-          from: twilioPhoneNumber,
-          to: adminPhone,
-          body: '❌ Formato incorrecto. Usa: ENSEÑA: palabra | respuesta'
-        });
-        return res.status(400).send('Bad format');
-      }
-
-      // Guardar la respuesta aprendida
-      await handleAdminTeaching(null, {
-        keywords: [keyword],
-        response: response,
-        category: 'admin_taught'
-      });
-
-      await twilio_client.messages.create({
-        from: twilioPhoneNumber,
-        to: adminPhone,
-        body: `✅ Aprendí: "${keyword}" → "${response}"`
-      });
-
-    } catch (error) {
-      console.error('Error enseñando:', error);
-      await twilio_client.messages.create({
-        from: twilioPhoneNumber,
-        to: adminPhone,
-        body: '❌ Error al procesar. Intenta de nuevo.'
-      });
-    }
-  } else if (message.toLowerCase() === 'pendientes') {
-    // Mostrar consultas pendientes
-    const pending = await getUnresolvedQueries();
-    if (pending.length === 0) {
-      await twilio_client.messages.create({
-        from: twilioPhoneNumber,
-        to: adminPhone,
-        body: '✓ No hay consultas pendientes'
-      });
-    } else {
-      let msg = `📋 CONSULTAS PENDIENTES (${pending.length}):\n\n`;
-      pending.slice(0, 5).forEach((q, i) => {
-        msg += `${i + 1}. De ${q.from_phone}\n"${q.query}"\n\n`;
-      });
-      await twilio_client.messages.create({
-        from: twilioPhoneNumber,
-        to: adminPhone,
-        body: msg
-      });
-    }
-  }
-
-  res.status(200).send('OK');
-});
-
-// Ruta para recibir mensajes webhook de Twilio
-app.get('/', (req, res) => {
-  res.status(200).send('Webhook configured');
-});
-
-// Ruta de status
-app.get('/status', (req, res) => {
-  res.json({
-    status: 'online',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-});
-
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ ok: true });
-});
-
-// Exportar para Vercel serverless
-module.exports = app;
+}
