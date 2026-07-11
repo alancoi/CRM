@@ -11,7 +11,8 @@ const {
 
 const {
   resolveQuery,
-  getUnresolvedQueries
+  getUnresolvedQueries,
+  saveInteraction
 } = require('../database');
 
 const twilio_client = twilio(
@@ -85,6 +86,15 @@ async function handleWhatsAppMessage(req, res) {
     console.log('📝 Formateando respuesta...');
     let messageText = formatResponseWithLinks(response, response.category);
     console.log('📝 Texto formateado:', messageText.substring(0, 100) + '...');
+
+    // Guardar interacción en Supabase ANTES de enviar
+    console.log('💾 Guardando en Supabase...');
+    try {
+      await saveInteraction(userPhone, userMessage, messageText, response.category);
+      console.log('✅ Interacción guardada en Supabase');
+    } catch (dbError) {
+      console.error('⚠️ Error guardando en Supabase:', dbError.message);
+    }
 
     // Enviar respuesta principal
     console.log('📤 Enviando mensaje a WhatsApp...');
