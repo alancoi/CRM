@@ -14,10 +14,10 @@ const CATEGORIES = {
     keywords: ['receta', 'saludable', 'dieta', 'salud', 'comida']
   },
   menopausia: {
-    name: '👩 Recetas para Menopausia',
-    emoji: '👩',
+    name: '📱 App para Mujeres con Menopausia',
+    emoji: '📱',
     url: process.env.URL_MENOPAUSIA,
-    keywords: ['menopausia', 'mujer', 'hormonal', 'síntomas']
+    keywords: ['menopausia', 'mujer', 'hormonal', 'síntomas', 'app']
   },
   remedios: {
     name: '🌿 Remedios Ancestrales',
@@ -27,15 +27,17 @@ const CATEGORIES = {
   }
 };
 
+const SALUDOS = ['hola', 'hi', 'buenos días', 'buenas tardes', 'buenas noches', 'ey', 'hey', 'qué tal', 'cómo estás'];
+
 function getMainMenu() {
   return {
-    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?\n\n🥗 Más de 1000 Recetas Saludables\n👩 Aplicación para Mujeres con Menopausia\n🌿 200 Remedios Ancestrales Naturales`,
+    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?\n\n🥗 Más de 1000 Recetas Saludables\n📱 App para Mujeres con Menopausia\n🌿 200 Remedios Ancestrales Naturales`,
     quickReply: [
       {
         text: '🥗 Más de 1000 Recetas Saludables'
       },
       {
-        text: '👩 Aplicación para Mujeres con Menopausia'
+        text: '📱 App para Mujeres con Menopausia'
       },
       {
         text: '🌿 200 Remedios Ancestrales Naturales'
@@ -56,8 +58,18 @@ function getCategoryFromText(text) {
   return null;
 }
 
+function isGreeting(text) {
+  const lowerText = text.toLowerCase().trim();
+  return SALUDOS.some(saludo => lowerText === saludo || lowerText.includes(saludo));
+}
+
 async function processMessage(userMessage, fromPhone) {
   const trimmed = userMessage.trim();
+
+  // Si es un saludo, mostrar menú principal
+  if (isGreeting(trimmed)) {
+    return getMainMenu();
+  }
 
   // Verificar si es uno de los botones principales
   let selectedCategory = null;
@@ -102,7 +114,7 @@ async function processMessage(userMessage, fromPhone) {
   await saveUnresolvedQuery(userMessage, fromPhone, category);
 
   return {
-    text: `Ay, no tengo esa info ahorita. Pero en cuanto la tenga, te paso todo, ¿dale? Mientras tanto te dejo el link por si querés ver más.`,
+    text: `Esa pregunta no la tengo en mi base de datos todavía, pero en cuanto la agreguen, te paso todo. Mientras tanto, mirá nuestras opciones:`,
     unknownQuery: true,
     shouldNotifyAdmin: true,
     queryPhone: fromPhone,
