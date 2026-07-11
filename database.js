@@ -2,13 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || './data/bot_memory.db';
-
-// Crear carpeta data si no existe
-const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+const DB_PATH = process.env.DB_PATH || '/tmp/bot_memory.db';
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) console.error('Error opening database:', err);
