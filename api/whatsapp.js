@@ -64,9 +64,9 @@ async function handleWhatsAppMessage(req, res) {
   });
 
   // Parsear el body (Twilio envía form-urlencoded)
-  const incoming = new URLSearchParams(body);
-  const userPhone = incoming.get('From');
-  const userMessage = incoming.get('Body');
+  const incoming = querystring.parse(body);
+  const userPhone = incoming.From;
+  const userMessage = incoming.Body;
 
   console.log(`📱 Mensaje de ${userPhone}: ${userMessage}`);
   console.log(`🔑 Twilio Number: ${twilioPhoneNumber}, Admin: ${adminPhone}`);
