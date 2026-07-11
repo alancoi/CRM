@@ -1,124 +1,141 @@
 require('dotenv').config();
-const sqlite3 = require('sqlite3').verbose();
-const DB_PATH = process.env.DB_PATH || '/tmp/bot_memory.db';
+const { createClient } = require('@supabase/supabase-js');
 
-const db = new sqlite3.Database(DB_PATH);
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-db.run(`CREATE TABLE IF NOT EXISTS learned_responses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  keyword TEXT UNIQUE,
-  response TEXT,
-  category TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+}
 
-db.run(`CREATE TABLE IF NOT EXISTS unresolved_queries (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  query TEXT NOT NULL,
-  from_phone TEXT NOT NULL,
-  category TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  resolved INTEGER DEFAULT 0,
-  admin_response TEXT
-)`);
-
-db.run(`CREATE TABLE IF NOT EXISTS user_interactions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  phone TEXT NOT NULL,
-  message TEXT,
-  response TEXT,
-  category TEXT,
-  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
+const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
 
 function saveInteraction(phone, message, response, category) {
-  return new Promise((resolve, reject) => {
-    const tempDb = new sqlite3.Database(DB_PATH);
-    tempDb.run('INSERT INTO user_interactions (phone, message, response, category) VALUES (?, ?, ?, ?)',
-      [phone, message, response, category],
-      function(err) {
-        tempDb.close();
-        if (err) reject(err);
-        else resolve(this.lastID);
-      }
-    );
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_interactions')
+        .insert([{ phone, message, response, category, timestamp: new Date().toISOString() }]);
+      if (error) reject(error);
+      else resolve(data?.[0]?.id || 1);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function saveLearned_Response(keyword, response, category) {
-  return new Promise((resolve, reject) => {
-    db.run('INSERT OR REPLACE INTO learned_responses (keyword, response, category) VALUES (?, ?, ?)',
-      [keyword, response, category],
-      function(err) {
-        if (err) reject(err);
-        else resolve(this.lastID);
-      }
-    );
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('learned_responses')
+        .upsert([{ keyword, response, category, created_at: new Date().toISOString() }], { onConflict: 'keyword' });
+      if (error) reject(error);
+      else resolve(data?.[0]?.id || 1);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
-function getLearned_Response(keyword) {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT response, category FROM learned_responses WHERE keyword = ?', [keyword], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+function getLearnedResponse(keyword) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('learned_responses')
+        .select('response, category')
+        .eq('keyword', keyword)
+        .single();
+      if (error && error.code !== 'PGRST116') reject(error);
+      else resolve(data?.response);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function searchResponses(keyword) {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT keyword, response, category FROM learned_responses WHERE keyword LIKE ?', [`%${keyword}%`], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('learned_responses')
+        .select('keyword, response, category')
+        .ilike('keyword', `%${keyword}%`);
+      if (error) reject(error);
+      else resolve(data || []);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function saveUnresolvedQuery(query, fromPhone, category) {
-  return new Promise((resolve, reject) => {
-    db.run('INSERT INTO unresolved_queries (query, from_phone, category) VALUES (?, ?, ?)',
-      [query, fromPhone, category],
-      function(err) {
-        if (err) reject(err);
-        else resolve(this.lastID);
-      }
-    );
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('unresolved_queries')
+        .insert([{ query, from_phone: fromPhone, category, created_at: new Date().toISOString(), resolved: false }]);
+      if (error) reject(error);
+      else resolve(data?.[0]?.id || 1);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function getUnresolvedQueries() {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT keyword, response, category FROM learned_responses ORDER BY created_at DESC',
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      }
-    );
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('unresolved_queries')
+        .select('*')
+        .eq('resolved', false)
+        .order('created_at', { ascending: false });
+      if (error) reject(error);
+      else resolve(data || []);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function resolveQuery(queryId, adminResponse) {
-  return new Promise((resolve, reject) => {
-    db.run('UPDATE unresolved_queries SET resolved = 1, admin_response = ? WHERE id = ?',
-      [adminResponse, queryId],
-      function(err) {
-        if (err) reject(err);
-        else resolve(this.lastID);
-      }
-    );
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('unresolved_queries')
+        .update({ resolved: true, admin_response: adminResponse })
+        .eq('id', queryId);
+      if (error) reject(error);
+      else resolve(data?.[0]?.id || 1);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function getAllResponses() {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT keyword, response, category FROM learned_responses ORDER BY created_at DESC',
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      }
-    );
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { data, error } = await supabase
+        .from('learned_responses')
+        .select('keyword, response, category')
+        .order('created_at', { ascending: false });
+      if (error) reject(error);
+      else resolve(data || []);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
-module.exports = { db, saveLearned_Response, getLearned_Response, searchResponses, saveUnresolvedQuery, getUnresolvedQueries, resolveQuery, getAllResponses, saveInteraction };
+module.exports = {
+  saveLearned_Response: saveLearned_Response,
+  getLearnedResponse,
+  searchResponses,
+  saveUnresolvedQuery,
+  getUnresolvedQueries,
+  resolveQuery,
+  getAllResponses,
+  saveInteraction
+};
