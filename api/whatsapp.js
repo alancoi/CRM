@@ -8,12 +8,12 @@ const {
   processMessage,
   formatResponseWithLinks,
   handleAdminTeaching
-} = require('./bot');
+} = require('../bot');
 
 const {
   resolveQuery,
   getUnresolvedQueries
-} = require('./database');
+} = require('../database');
 
 const app = express();
 const port = process.env.PORT || 3000;
