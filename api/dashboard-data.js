@@ -5,21 +5,35 @@ const DB_PATH = process.env.DB_PATH || '/tmp/bot_memory.db';
 module.exports = async (req, res) => {
   const db = new sqlite3.Database(DB_PATH);
 
-  try {
+  db.run(`CREATE TABLE IF NOT EXISTS user_interactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL,
+    message TEXT,
+    response TEXT,
+    category TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating table:', err);
+      res.status(500).json({ error: 'Error creating table' });
+      db.close();
+      return;
+    }
+
     db.all(
       `SELECT phone, message, response, timestamp FROM user_interactions ORDER BY timestamp DESC`,
       (err, rows) => {
         if (err) {
           console.error('Error:', err);
-          return res.status(500).json({ error: err.message });
+          res.status(500).json({ error: err.message });
+          db.close();
+          return;
         }
 
         const chatsMap = new Map();
-
         if (rows && rows.length > 0) {
           rows.forEach(row => {
             const phone = row.phone || 'Usuario Desconocido';
-
             if (!chatsMap.has(phone)) {
               const initials = phone.substring(0, 2).toUpperCase();
               chatsMap.set(phone, {
@@ -32,19 +46,13 @@ module.exports = async (req, res) => {
                 messages: []
               });
             }
-
             const chat = chatsMap.get(phone);
-            if (row.message) {
-              chat.messages.push({ type: 'sent', text: row.message });
-            }
-            if (row.response) {
-              chat.messages.push({ type: 'received', text: row.response });
-            }
+            if (row.message) chat.messages.push({ type: 'sent', text: row.message });
+            if (row.response) chat.messages.push({ type: 'received', text: row.response });
           });
         }
 
         const chats = Array.from(chatsMap.values());
-
         res.status(200).json({
           chats: chats,
           stats: {
@@ -53,13 +61,8 @@ module.exports = async (req, res) => {
             totalClients: chats.length
           }
         });
-
         db.close();
       }
     );
-  } catch (error) {
-    console.error('Error en dashboard-data:', error);
-    res.status(500).json({ error: error.message });
-    db.close();
-  }
+  });
 };
