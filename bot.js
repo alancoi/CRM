@@ -31,18 +31,15 @@ const SALUDOS = ['hola', 'hi', 'buenos días', 'buenas tardes', 'buenas noches',
 
 function getMainMenu() {
   return {
-    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?\n\n📋 Seleccioná tocando el botón o escribiendo 1, 2 o 3\n\n💡 Importante: Las compras se hacen solo por la web y te llegan automáticamente a tu mail. El pago es único con acceso de por vida al material y sus actualizaciones.`,
-    options: [
-      {
-        text: '🥗 Recetas Saludables'
-      },
-      {
-        text: '📱 App Menopausia'
-      },
-      {
-        text: '🌿 Remedios Ancestrales'
-      }
-    ]
+    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?
+
+Escribí el número (1, 2 o 3):
+
+1️⃣ 🥗 Más de 1000 Recetas Saludables
+2️⃣ 📱 App para Mujeres con Menopausia
+3️⃣ 🌿 Remedios Ancestrales
+
+💡 Importante: Las compras se hacen solo por la web y te llegan automáticamente a tu mail. El pago es único con acceso de por vida al material y sus actualizaciones.`
   };
 }
 
