@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
     const { data: interactions, error } = await supabase
       .from('user_interactions')
       .select('*')
-      .order('timestamp', { ascending: false });
+      .order('timestamp', { ascending: true });
 
     if (error) {
       console.error('Supabase error:', error);
@@ -36,13 +36,17 @@ module.exports = async (req, res) => {
           id: Object.keys(chatsMap).length,
           name: interaction.phone,
           phone: interaction.phone,
-          lastMessage: interaction.message || interaction.response || '',
+          lastMessage: interaction.response || interaction.message || '',
           messages: []
         };
       }
+
+      // Agregar AMBOS el mensaje del usuario y la respuesta del bot
       chatsMap[interaction.phone].messages.push({
-        type: interaction.message ? 'sent' : 'received',
-        text: interaction.message || interaction.response
+        message: interaction.message || null,
+        response: interaction.response || null,
+        timestamp: interaction.timestamp,
+        category: interaction.category
       });
     });
 
