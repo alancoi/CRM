@@ -509,6 +509,15 @@
 
       document.getElementById('statTotal').textContent = data.stats?.totalMessages || 0;
       renderChats();
+
+      // Si hay un chat seleccionado, actualizar sus mensajes en tiempo real
+      if (selectedChat) {
+        const updatedChat = allChats.find(c => c.phone === selectedChat.phone);
+        if (updatedChat) {
+          selectedChat = updatedChat;
+          renderMessages(); // Re-renderizar los mensajes automáticamente
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
     }
