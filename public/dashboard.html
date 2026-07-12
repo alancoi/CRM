@@ -636,14 +636,30 @@
     reader.readAsDataURL(file);
   }
 
-  function saveTraining() {
+  async function saveTraining() {
     const keyword = document.getElementById('keyword').value.trim();
     const response = document.getElementById('response').value.trim();
     if (!keyword || !response) {
       alert('Completa ambos campos');
       return;
     }
-    alert('✅ Bot entrenado: ' + keyword);
+        try {
+      const res = await fetch('/api/train', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, response, category: 'dashboard' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('✅ Bot entrenado: ' + keyword);
+      } else {
+        alert('❌ Error: ' + data.error);
+        return;
+      }
+    } catch (error) {
+      alert('❌ Error guardando: ' + error.message);
+      return;
+    }
     document.getElementById('keyword').value = '';
     document.getElementById('response').value = '';
     closeModal('trainModal');
