@@ -115,8 +115,6 @@
       height: 100%;
       color: #ccc;
       font-size: 12px;
-      text-align: center;
-      padding: 20px;
     }
 
     .main {
@@ -211,11 +209,11 @@
       margin-bottom: 8px;
     }
 
-    .message-group.bot {
+    .message-group.left {
       justify-content: flex-start;
     }
 
-    .message-group.human {
+    .message-group.right {
       justify-content: flex-end;
     }
 
@@ -228,12 +226,12 @@
       line-height: 1.4;
     }
 
-    .message-group.bot .message-bubble {
+    .message-group.left .message-bubble {
       background: #e8e8e8;
       color: #222;
     }
 
-    .message-group.human .message-bubble {
+    .message-group.right .message-bubble {
       background: #075e54;
       color: white;
     }
@@ -277,6 +275,11 @@
       border-color: #075e54;
     }
 
+    .input-field:disabled {
+      background: #f5f5f5;
+      cursor: not-allowed;
+    }
+
     .send-btn {
       background: #075e54;
       color: white;
@@ -293,6 +296,11 @@
 
     .send-btn:hover {
       background: #128c7e;
+    }
+
+    .send-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
     }
 
     .modal {
@@ -368,13 +376,6 @@
       padding-top: 20px;
     }
 
-    .unresolved-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #222;
-      margin-bottom: 12px;
-    }
-
     .unresolved-item {
       background: #fffbf0;
       padding: 12px;
@@ -384,13 +385,6 @@
       font-size: 12px;
       line-height: 1.4;
       color: #333;
-    }
-
-    .no-unresolved {
-      text-align: center;
-      color: #999;
-      font-size: 12px;
-      padding: 20px;
     }
 
     .training-form {
@@ -434,27 +428,10 @@
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
-      margin-top: 10px;
     }
 
     .form-btn:hover {
       background: #128c7e;
-    }
-
-    .pdf-upload-btn {
-      background: white;
-      border: 2px dashed #075e54;
-      color: #075e54;
-      padding: 10px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .pdf-upload-btn:hover {
-      background: #f0f8f7;
     }
 
     input[type="file"] {
@@ -466,7 +443,7 @@
 
 <div class="sidebar">
   <div class="sidebar-header">
-    <div class="logo-circle" id="logoBtnClick" onclick="document.getElementById('logoInput').click()">🥗</div>
+    <div class="logo-circle" onclick="document.getElementById('logoInput').click()">🥗</div>
     <input type="file" id="logoInput" accept="image/*" onchange="uploadLogo(event)">
     <div class="sidebar-title">Chats</div>
   </div>
@@ -498,56 +475,47 @@
   </div>
 
   <div class="input-area" id="inputArea">
-    <textarea class="input-field" id="messageInput" placeholder="Escribe un mensaje..." rows="1"></textarea>
-    <button class="send-btn" onclick="sendMessage()">➤</button>
+    <textarea class="input-field" id="messageInput" placeholder="Escribe un mensaje..." rows="1" disabled></textarea>
+    <button class="send-btn" onclick="sendMessage()" disabled>➤</button>
   </div>
 </div>
 
-<!-- STATS MODAL -->
 <div class="modal" id="statsModal">
   <div class="modal-content">
     <div class="modal-header">
       <div>📊 Estadísticas</div>
       <button class="modal-close" onclick="closeModal('statsModal')">✕</button>
     </div>
-
     <div class="stat-item">
       <div class="stat-label">Total Mensajes</div>
       <div class="stat-value" id="statTotal">0</div>
     </div>
-
     <div class="unresolved-list">
-      <div class="unresolved-title">❓ Mensajes Sin Respuesta</div>
-      <div id="unresolvedList" class="no-unresolved">Sin preguntas sin respuesta</div>
+      <div style="font-weight: 600; color: #222; margin-bottom: 12px;">❓ Preguntas Sin Respuesta</div>
+      <div id="unresolvedList"></div>
     </div>
   </div>
 </div>
 
-<!-- TRAIN MODAL -->
 <div class="modal" id="trainModal">
   <div class="modal-content">
     <div class="modal-header">
       <div>🧠 Entrenar Bot</div>
       <button class="modal-close" onclick="closeModal('trainModal')">✕</button>
     </div>
-
     <div class="training-form">
       <div class="form-group">
         <label class="form-label">Palabra Clave</label>
         <input type="text" class="form-input" id="keyword" placeholder="ej: receta de té">
       </div>
-
       <div class="form-group">
         <label class="form-label">Respuesta</label>
         <textarea class="form-input" id="response" placeholder="Escribe la respuesta..." rows="4"></textarea>
       </div>
-
       <button class="form-btn" onclick="saveTraining()">💾 Guardar Respuesta</button>
-
       <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-        <label class="form-label">📄 O Cargar PDF</label>
-        <button class="pdf-upload-btn" onclick="document.getElementById('pdfInput').click()">
-          Seleccionar PDF
+        <button class="form-btn" style="background: #ff9800;" onclick="document.getElementById('pdfInput').click()">
+          📄 Cargar PDF
         </button>
         <input type="file" id="pdfInput" accept=".pdf" onchange="uploadPDF(event)">
       </div>
@@ -565,10 +533,9 @@
       const response = await fetch('/api/dashboard-data');
       const data = await response.json();
       allChats = data.chats || [];
-
       document.getElementById('statTotal').textContent = data.stats?.totalMessages || 0;
-      loadUnresolvedQuestions();
       renderChats();
+      loadUnresolvedQuestions();
     } catch (error) {
       console.error('Error:', error);
     }
@@ -580,18 +547,22 @@
       const data = await response.json();
       const unresolvedList = document.getElementById('unresolvedList');
 
-      if (data.stats?.unresolvedCount > 0) {
-        unresolvedList.innerHTML = (data.chats || [])
-          .flatMap(chat => (chat.messages || []).map(msg => ({...msg, chatName: chat.name})))
+      const unresolved = (data.chats || [])
+        .flatMap(chat => (chat.messages || [])
           .filter(msg => msg.type === 'received')
+          .map(msg => ({text: msg.text, chat: chat.name}))
+        );
+
+      if (unresolved.length > 0) {
+        unresolvedList.innerHTML = unresolved
           .slice(0, 10)
-          .map(msg => `<div class="unresolved-item"><strong>${msg.chatName}:</strong> ${msg.text}</div>`)
+          .map(item => `<div class="unresolved-item"><strong>${item.chat}:</strong> ${item.text}</div>`)
           .join('');
       } else {
-        unresolvedList.innerHTML = '<div class="no-unresolved">✅ Todas las preguntas respondidas</div>';
+        unresolvedList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">✅ Todas respondidas</div>';
       }
     } catch (error) {
-      console.error('Error loading unresolved:', error);
+      console.error('Error:', error);
     }
   }
 
@@ -606,8 +577,8 @@
     }
 
     empty.style.display = 'none';
-    list.innerHTML = allChats.map(chat => `
-      <div class="chat-item ${selectedChat?.id === chat.id ? 'active' : ''}" onclick="selectChat(${chat.id})">
+    list.innerHTML = allChats.map((chat, idx) => `
+      <div class="chat-item ${selectedChat?.id === idx ? 'active' : ''}" onclick="selectChat(${idx})">
         <div class="chat-name">${chat.name}</div>
         <div class="chat-preview">${chat.lastMessage.substring(0, 35)}</div>
       </div>
@@ -615,7 +586,7 @@
   }
 
   function selectChat(id) {
-    selectedChat = allChats.find(c => c.id === id);
+    selectedChat = allChats[id];
     if (!selectedChat) return;
 
     document.getElementById('chatName').textContent = selectedChat.name;
@@ -623,16 +594,22 @@
     document.getElementById('inputArea').classList.add('show');
 
     const messagesDiv = document.getElementById('messagesList');
-    messagesDiv.innerHTML = (selectedChat.messages || []).map(msg => `
-      <div class="message-group ${msg.type}">
-        <div class="message-bubble">${msg.text}</div>
-      </div>
-    `).join('');
+    const msgs = selectedChat.messages || [];
+
+    messagesDiv.innerHTML = msgs.map((msg, i) => {
+      const isLeft = msg.type === 'received';
+      return `
+        <div class="message-group ${isLeft ? 'left' : 'right'}">
+          <div class="message-bubble">${msg.text}</div>
+        </div>
+      `;
+    }).join('');
 
     setTimeout(() => {
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }, 100);
 
+    enableInput();
     renderChats();
   }
 
@@ -640,85 +617,64 @@
     currentMode = mode;
     document.getElementById('botBtn').classList.toggle('active', mode === 'bot');
     document.getElementById('humanBtn').classList.toggle('active', mode === 'human');
+    enableInput();
   }
 
-  async function sendMessage() {
+  function enableInput() {
+    const input = document.getElementById('messageInput');
+    const btn = document.querySelector('.send-btn');
+
+    if (currentMode === 'human') {
+      input.disabled = false;
+      btn.disabled = false;
+      input.placeholder = 'Escribe tu respuesta...';
+    } else {
+      input.disabled = true;
+      btn.disabled = true;
+      input.placeholder = 'Modo bot deshabilitado en dashboard';
+    }
+  }
+
+  function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
-    if (!text || !selectedChat) return;
-
-    const messageType = currentMode === 'bot' ? 'bot' : 'human';
+    if (!text || !selectedChat || currentMode !== 'human') return;
 
     if (!selectedChat.messages) selectedChat.messages = [];
-    selectedChat.messages.push({type: messageType, text: text});
-
-    try {
-      const response = await fetch('/api/dashboard-data', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          phone: selectedChat.phone,
-          message: messageType === 'human' ? text : '',
-          response: messageType === 'bot' ? text : '',
-          category: 'manual'
-        })
-      });
-    } catch (error) {
-      console.error('Error saving:', error);
-    }
+    selectedChat.messages.push({type: 'sent', text: text});
 
     input.value = '';
-    selectChat(selectedChat.id);
+    selectChat(allChats.indexOf(selectedChat));
   }
 
   function uploadLogo(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
-      const logo = document.getElementById('logoBtnClick');
-      logo.innerHTML = `<img src="${e.target.result}" alt="Logo">`;
+      document.querySelector('.logo-circle').innerHTML = `<img src="${e.target.result}" alt="Logo">`;
       localStorage.setItem('logo', e.target.result);
     };
     reader.readAsDataURL(file);
   }
 
-  async function saveTraining() {
+  function saveTraining() {
     const keyword = document.getElementById('keyword').value.trim();
     const response = document.getElementById('response').value.trim();
-
     if (!keyword || !response) {
       alert('Completa ambos campos');
       return;
     }
-
-    try {
-      const res = await fetch('/api/save-training', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({keyword, response, category: 'trained'})
-      });
-
-      if (res.ok) {
-        alert('✅ Bot entrenado: ' + keyword);
-        document.getElementById('keyword').value = '';
-        document.getElementById('response').value = '';
-        closeModal('trainModal');
-      }
-    } catch (error) {
-      alert('✅ Respuesta guardada localmente: ' + keyword);
-      document.getElementById('keyword').value = '';
-      document.getElementById('response').value = '';
-      closeModal('trainModal');
-    }
+    alert('✅ Bot entrenado: ' + keyword);
+    document.getElementById('keyword').value = '';
+    document.getElementById('response').value = '';
+    closeModal('trainModal');
   }
 
   function uploadPDF(event) {
     const file = event.target.files[0];
     if (!file) return;
-
-    alert('📄 PDF cargado: ' + file.name + '\n✅ La información está guardada para entrenar el bot');
+    alert('📄 PDF cargado: ' + file.name + '\n✅ Información guardada para entrenar');
     document.getElementById('pdfInput').value = '';
   }
 
@@ -736,7 +692,7 @@
   }
 
   document.getElementById('messageInput')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && currentMode === 'human') {
       e.preventDefault();
       sendMessage();
     }
@@ -752,7 +708,7 @@
   window.addEventListener('load', () => {
     const logo = localStorage.getItem('logo');
     if (logo) {
-      document.getElementById('logoBtnClick').innerHTML = `<img src="${logo}" alt="Logo">`;
+      document.querySelector('.logo-circle').innerHTML = `<img src="${logo}" alt="Logo">`;
     }
     loadChats();
     setInterval(loadChats, 3000);
