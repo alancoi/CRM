@@ -495,7 +495,10 @@
 
   async function loadChats() {
     try {
-      const response = await fetch('/api/dashboard-data');
+      const response = await fetch('/api/dashboard-data?t=' + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+      });
       const data = await response.json();
 
       // Convertir formato de API a formato de UI
