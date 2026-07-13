@@ -10,7 +10,7 @@ const CATEGORIES = {
   recetas_saludables: {
     name: '🥗 Más de 1000 Recetas Saludables',
     emoji: '🥗',
-    url: process.env.URL_RECETAS_SALUDABLES || 'https://recetas.ejemplo.com',
+    url: 'https://remediosdelaabuela.myshopify.com/pages/recetas',
     keywords: ['receta', 'saludable', 'dieta', 'salud', 'comida', '1']
   },
   menopausia: {
