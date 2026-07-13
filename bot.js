@@ -28,6 +28,55 @@ const CATEGORIES = {
 };
 
 const SALUDOS = ['hola', 'hi', 'buenos días', 'buenas tardes', 'buenas noches', 'ey', 'hey', 'qué tal', 'cómo estás'];
+
+// VARIACIONES DE "YA COMPRÉ"
+const COMPRA_CONFIRMADA_KEYWORDS = [
+  'ya compré', 'ya compre', 'listo', 'ya he comprado', 'ya pagué', 'ya pague',
+  'ya compré', 'compré', 'compre', 'pagué', 'pague', 'listo ya compre',
+  'listo, ya compré', 'ya realicé la compra', 'realicé la compra', 'realice la compra',
+  'ya realice la compra', 'efectué la compra', 'efectue la compra', 'hice la compra',
+  'compré ya', 'compre ya', 'lista la compra', 'lista mi compra', 'lista, compré',
+  'lista, compre', 'ya está hecho', 'ya esta hecho', 'completé la compra',
+  'complete la compra', 'comprado', 'comprada', 'ya comprada', 'ya comprado',
+  'pago realizado', 'pago hecho', 'ya pague', 'compra confirmada', 'confirmado'
+];
+
+// VARIACIONES OPCIÓN 1
+const OPCION_1_KEYWORDS = [
+  'quiero el 1', 'dame el 1', 'la quiero el 1', 'necesito el 1',
+  'estoy interesado en el 1', 'interesado en recetas', 'quiero recetas',
+  'dame recetas', 'recetas saludables', 'quiero las recetas', 'dame las recetas',
+  'me interesa el 1', 'voy con el 1', '1 por favor', 'opción 1',
+  'la primera', 'la primera opción', 'recetas', 'más recetas', 'quiero más recetas',
+  'recetas por favor', 'me interesa recetas', 'recetas saludables por favor',
+  'me gustan las recetas', 'dame la primera', 'la de recetas', 'número uno',
+  'numero uno', 'uno', 'el 1', 'primer opción'
+];
+
+// VARIACIONES OPCIÓN 2
+const OPCION_2_KEYWORDS = [
+  'quiero el 2', 'dame el 2', 'la quiero el 2', 'necesito el 2',
+  'estoy interesado en el 2', 'interesado en menopausia', 'quiero menopausia',
+  'dame menopausia', 'app menopausia', 'quiero la app', 'dame la app',
+  'me interesa el 2', 'voy con el 2', '2 por favor', 'opción 2',
+  'la segunda', 'la segunda opción', 'menopausia', 'app', 'aplicación',
+  'app para mujeres', 'me interesa menopausia', 'menopausia por favor',
+  'me gustaría la app', 'dame la segunda', 'la de menopausia', 'número dos',
+  'numero dos', 'dos', 'el 2', 'segunda opción', 'aplicación para mujeres'
+];
+
+// VARIACIONES OPCIÓN 3
+const OPCION_3_KEYWORDS = [
+  'quiero el 3', 'dame el 3', 'la quiero el 3', 'necesito el 3',
+  'estoy interesado en el 3', 'interesado en remedios', 'quiero remedios',
+  'dame remedios', 'remedios ancestrales', 'quiero los remedios', 'dame los remedios',
+  'me interesa el 3', 'voy con el 3', '3 por favor', 'opción 3',
+  'la tercera', 'la tercera opción', 'remedios', 'remedios naturales', 'remedios ancestrales',
+  'me interesa remedios', 'remedios por favor', 'me gustaría los remedios',
+  'dame la tercera', 'la de remedios', 'número tres', 'numero tres', 'tres',
+  'el 3', 'tercera opción', 'remedios naturales por favor', 'quiero remedios ancestrales'
+];
+
 const FACEBOOK_LINK = 'https://www.facebook.com/profile.php?id=61591793630796&sk=reviews';
 
 function getMainMenu() {
@@ -58,16 +107,19 @@ function getErrorResponse() {
   };
 }
 
-function getCategoryFromText(text) {
-  const lowerText = text.toLowerCase();
+function normalizarTexto(texto) {
+  return texto.toLowerCase().trim()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, '');
+}
 
-  for (const [key, category] of Object.entries(CATEGORIES)) {
-    if (lowerText.includes(key.replace('_', ' ')) ||
-        category.keywords.some(keyword => lowerText.includes(keyword))) {
-      return key;
-    }
-  }
-  return null;
+function coincideConPalabras(texto, palabras) {
+  const textoNormalizado = normalizarTexto(texto);
+  return palabras.some(palabra => {
+    const palabraNormalizada = normalizarTexto(palabra);
+    return textoNormalizado.includes(palabraNormalizada);
+  });
 }
 
 function isGreeting(text) {
@@ -75,42 +127,18 @@ function isGreeting(text) {
   return SALUDOS.some(saludo => lowerText === saludo || lowerText.includes(saludo));
 }
 
-function isValidOption(text) {
-  const trimmed = text.toLowerCase().trim();
-  return trimmed === '1' || trimmed === '2' || trimmed === '3';
-}
-
 async function processMessage(userMessage, fromPhone) {
   const trimmed = userMessage.trim();
 
-  // Si es un saludo, mostrar menú principal
+  // Si es un saludo
   if (isGreeting(trimmed)) {
     return getMainMenu();
   }
 
-  // Verificar si es uno de los botones principales (por nombre o número)
-  let selectedCategory = null;
-  const lowerTrimmed = trimmed.toLowerCase();
-  
-  if (lowerTrimmed.includes('receta') || lowerTrimmed === '1' || lowerTrimmed.includes('número 1') || lowerTrimmed.includes('el 1')) {
-    selectedCategory = 'recetas_saludables';
-  } else if (lowerTrimmed.includes('menopausia') || lowerTrimmed.includes('app') || lowerTrimmed === '2' || lowerTrimmed.includes('número 2') || lowerTrimmed.includes('el 2')) {
-    selectedCategory = 'menopausia';
-  } else if (lowerTrimmed.includes('remedio') || lowerTrimmed === '3' || lowerTrimmed.includes('número 3') || lowerTrimmed.includes('el 3')) {
-    selectedCategory = 'remedios';
-  }
-
-  // Si es una opción válida del menú, devolver la información del producto
-  if (selectedCategory) {
-    return generateProductResponse(selectedCategory);
-  }
-
-  // Si escribió algo que no es un número ni una opción válida
-  if (!isValidOption(trimmed) && !getCategoryFromText(userMessage)) {
-    // Verificar si dice "ya compré"
-    if (lowerTrimmed.includes('ya compré')) {
-      return {
-        text: `¡Perfecto! 🎉 Ya te enviamos el regalito, está en el drive, fijate con tu acceso 📥
+  // Verificar si es "ya compré" (con muchas variaciones)
+  if (coincideConPalabras(trimmed, COMPRA_CONFIRMADA_KEYWORDS)) {
+    return {
+      text: `¡Perfecto! 🎉 Ya te enviamos el regalito, está en el drive, fijate con tu acceso 📥
 
 Te pido un favorcito 🙏 Si podés comentar en nuestro Facebook con una reseña positiva, diciendo que te llegó todo bien, nos ayuda un montón para que otras personas confíen en nuestro trabajo 💚
 
@@ -118,12 +146,23 @@ Acá está el link para comentar:
 🔗 ${FACEBOOK_LINK}
 
 Muchas gracias, que tengas un hermoso día 😊`,
-        category: 'compra_confirmada'
-      };
-    }
+      category: 'compra_confirmada'
+    };
+  }
 
-    // Si no entiende, pedir que responda con un número
-    return getErrorResponse();
+  // Verificar opción 1 (Recetas)
+  if (coincideConPalabras(trimmed, OPCION_1_KEYWORDS)) {
+    return generateProductResponse('recetas_saludables');
+  }
+
+  // Verificar opción 2 (Menopausia)
+  if (coincideConPalabras(trimmed, OPCION_2_KEYWORDS)) {
+    return generateProductResponse('menopausia');
+  }
+
+  // Verificar opción 3 (Remedios)
+  if (coincideConPalabras(trimmed, OPCION_3_KEYWORDS)) {
+    return generateProductResponse('remedios');
   }
 
   // Intentar encontrar respuesta en la base de datos
@@ -131,7 +170,7 @@ Muchas gracias, que tengas un hermoso día 😊`,
   if (learnedResponse) {
     return {
       text: learnedResponse,
-      category: getCategoryFromText(userMessage)
+      category: 'learned'
     };
   }
 
@@ -144,7 +183,7 @@ Muchas gracias, que tengas un hermoso día 😊`,
     };
   }
 
-  // Si no encontró respuesta, devolver error
+  // Si no entiende
   return getErrorResponse();
 }
 
@@ -188,5 +227,8 @@ module.exports = {
   formatResponseWithLinks,
   handleAdminTeaching,
   CATEGORIES,
-  getCategoryFromText
+  COMPRA_CONFIRMADA_KEYWORDS,
+  OPCION_1_KEYWORDS,
+  OPCION_2_KEYWORDS,
+  OPCION_3_KEYWORDS
 };
