@@ -8,38 +8,53 @@ const {
 
 const CATEGORIES = {
   recetas_saludables: {
-    name: '🥗 Recetas Saludables',
+    name: '🥗 Más de 1000 Recetas Saludables',
     emoji: '🥗',
-    url: process.env.URL_RECETAS_SALUDABLES,
+    url: process.env.URL_RECETAS_SALUDABLES || 'https://recetas.ejemplo.com',
     keywords: ['receta', 'saludable', 'dieta', 'salud', 'comida', '1']
   },
   menopausia: {
     name: '📱 App para Mujeres con Menopausia',
     emoji: '📱',
-    url: process.env.URL_MENOPAUSIA,
+    url: process.env.URL_MENOPAUSIA || 'https://menopausia.ejemplo.com',
     keywords: ['menopausia', 'mujer', 'hormonal', 'síntomas', 'app', '2']
   },
   remedios: {
     name: '🌿 Remedios Ancestrales',
     emoji: '🌿',
-    url: process.env.URL_REMEDIOS,
+    url: process.env.URL_REMEDIOS || 'https://remedios.ejemplo.com',
     keywords: ['remedio', 'ancestral', 'abuela', 'natural', 'tradicional', '3']
   }
 };
 
 const SALUDOS = ['hola', 'hi', 'buenos días', 'buenas tardes', 'buenas noches', 'ey', 'hey', 'qué tal', 'cómo estás'];
+const FACEBOOK_LINK = 'https://www.facebook.com/profile.php?id=61591793630796&sk=reviews';
 
 function getMainMenu() {
   return {
-    text: `Hola, gracias por interesarte por nuestros packs. ¿Cuál de estos te interesa?
-
-Escribí el número (1, 2 o 3):
+    text: `¡Hola! 👋 Gracias por interesarte en nuestros packs 🎉 Aquí te paso la info. **Solo responde con los números de lo que te interesa (1, 2 o 3).** ⬇️
 
 1️⃣ 🥗 Más de 1000 Recetas Saludables
-2️⃣ 📱 App para Mujeres con Menopausia
+2️⃣ 📱 App para Mujeres con Menopausia  
 3️⃣ 🌿 Remedios Ancestrales
 
-💡 Importante: Las compras se hacen solo por la web y te llegan automáticamente a tu mail. El pago es único con acceso de por vida al material y sus actualizaciones.`
+Toda la información y compra está en la web 🌐 ¡Disfruta los superdescuentos con bonus de regalo! 🎁✨
+
+💳 El pago es único con acceso inmediato al mail y de por vida
+📥 Podés descargar el contenido para verlo cuando quieras y sin Internet
+📱 O utilizarlo cuando quieras en el caso de la aplicación, y sin Internet`,
+    category: 'menu'
+  };
+}
+
+function getErrorResponse() {
+  return {
+    text: `Por favor, responde con un número 🙏 (1, 2 o 3) para ayudarte mejor:
+
+1️⃣ 🥗 Más de 1000 Recetas Saludables
+2️⃣ 📱 App para Mujeres con Menopausia  
+3️⃣ 🌿 Remedios Ancestrales`,
+    category: 'error'
   };
 }
 
@@ -60,6 +75,11 @@ function isGreeting(text) {
   return SALUDOS.some(saludo => lowerText === saludo || lowerText.includes(saludo));
 }
 
+function isValidOption(text) {
+  const trimmed = text.toLowerCase().trim();
+  return trimmed === '1' || trimmed === '2' || trimmed === '3';
+}
+
 async function processMessage(userMessage, fromPhone) {
   const trimmed = userMessage.trim();
 
@@ -72,82 +92,77 @@ async function processMessage(userMessage, fromPhone) {
   let selectedCategory = null;
   const lowerTrimmed = trimmed.toLowerCase();
   
-  if (lowerTrimmed.includes('receta') || lowerTrimmed === '1') {
+  if (lowerTrimmed.includes('receta') || lowerTrimmed === '1' || lowerTrimmed.includes('número 1') || lowerTrimmed.includes('el 1')) {
     selectedCategory = 'recetas_saludables';
-  } else if (lowerTrimmed.includes('menopausia') || lowerTrimmed.includes('app') || lowerTrimmed === '2') {
+  } else if (lowerTrimmed.includes('menopausia') || lowerTrimmed.includes('app') || lowerTrimmed === '2' || lowerTrimmed.includes('número 2') || lowerTrimmed.includes('el 2')) {
     selectedCategory = 'menopausia';
-  } else if (lowerTrimmed.includes('remedio') || lowerTrimmed === '3') {
+  } else if (lowerTrimmed.includes('remedio') || lowerTrimmed === '3' || lowerTrimmed.includes('número 3') || lowerTrimmed.includes('el 3')) {
     selectedCategory = 'remedios';
   }
 
-  // Si es una opción del menú, devolver la web directa
+  // Si es una opción válida del menú, devolver la información del producto
   if (selectedCategory) {
-    return generateDirectPurchaseResponse(selectedCategory);
+    return generateProductResponse(selectedCategory);
+  }
+
+  // Si escribió algo que no es un número ni una opción válida
+  if (!isValidOption(trimmed) && !getCategoryFromText(userMessage)) {
+    // Verificar si dice "ya compré"
+    if (lowerTrimmed.includes('ya compré')) {
+      return {
+        text: `¡Perfecto! 🎉 Ya te enviamos el regalito, está en el drive, fijate con tu acceso 📥
+
+Te pido un favorcito 🙏 Si podés comentar en nuestro Facebook con una reseña positiva, diciendo que te llegó todo bien, nos ayuda un montón para que otras personas confíen en nuestro trabajo 💚
+
+Acá está el link para comentar:
+🔗 ${FACEBOOK_LINK}
+
+Muchas gracias, que tengas un hermoso día 😊`,
+        category: 'compra_confirmada'
+      };
+    }
+
+    // Si no entiende, pedir que responda con un número
+    return getErrorResponse();
   }
 
   // Intentar encontrar respuesta en la base de datos
   const learnedResponse = await getLearnedResponse(trimmed);
   if (learnedResponse) {
-    const category = getCategoryFromText(userMessage);
-    await saveInteraction(fromPhone, userMessage, learnedResponse, category);
     return {
       text: learnedResponse,
-      includeLinks: true,
-      category: category
+      category: getCategoryFromText(userMessage)
     };
   }
 
   // Buscar respuestas similares
   const similarResponses = await searchResponses(trimmed);
   if (similarResponses.length > 0) {
-    const response = similarResponses[0];
-    await saveInteraction(fromPhone, userMessage, response.response, response.category);
     return {
-      text: response.response,
-      includeLinks: true,
-      category: response.category
+      text: similarResponses[0].response,
+      category: similarResponses[0].category
     };
   }
 
-  // Si no encontró respuesta, guardar como consulta no resuelta
-  const category = getCategoryFromText(userMessage);
-  await saveUnresolvedQuery(userMessage, fromPhone, category);
-
-  return {
-    text: `Esa pregunta no la tengo en mi base de datos todavía, pero en cuanto la agreguen, te paso todo. Mientras tanto, mirá nuestras opciones:`,
-    unknownQuery: true,
-    shouldNotifyAdmin: true,
-    queryPhone: fromPhone,
-    query: userMessage,
-    category: category,
-    includeLinks: true
-  };
+  // Si no encontró respuesta, devolver error
+  return getErrorResponse();
 }
 
-function generateDirectPurchaseResponse(categoryKey) {
+function generateProductResponse(categoryKey) {
   const category = CATEGORIES[categoryKey];
 
   return {
-    text: `${category.emoji} ${category.name}\n\n¡Perfecto! Accedé a tu compra por aquí:\n\n👉 ${category.url}\n\nℹ️ Tu acceso se envía automáticamente a tu mail. Pago único, acceso de por vida + todas las actualizaciones.`,
-    includeLinks: false,
+    text: `${category.emoji} ${category.name}
+
+Una vez que realices tu compra, escribime por acá diciendo **"ya compré" y tu mail** 📧 así te puedo enviar un regalito aparte de tu compra 🎁✨
+
+👉 ${category.url}`,
     category: categoryKey
   };
 }
 
 function formatResponseWithLinks(response, category = null) {
-  let text = response.text;
-
-  // Agregar links automáticamente solo si se especifica
-  if (response.includeLinks) {
-    text += `\n\n---\n📱 Ir a la tienda:\n`;
-    for (const [key, cat] of Object.entries(CATEGORIES)) {
-      if (!category || category === key) {
-        text += `\n${cat.emoji} ${cat.name}\n${cat.url}`;
-      }
-    }
-  }
-
-  return text;
+  return response.text || response;
 }
 
 async function handleAdminTeaching(queryId, teachingResponse) {
@@ -169,7 +184,7 @@ async function handleAdminTeaching(queryId, teachingResponse) {
 module.exports = {
   getMainMenu,
   processMessage,
-  generateDirectPurchaseResponse,
+  generateProductResponse,
   formatResponseWithLinks,
   handleAdminTeaching,
   CATEGORIES,
